@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 import logging
@@ -71,6 +71,18 @@ async def database_error_handler(request, exc):
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name, "version": "0.1.0"}
+
+@app.get("/health/ready")
+def health_ready() -> dict[str, str]:
+    """Readiness probe for the container healthcheck: the database must answer."""
+    from sqlalchemy import text
+    from .db import engine
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="database not ready") from exc
+    return {"status": "ready"}
 
 @app.get("/api/v1/protected-ping")
 def protected_ping(_: Annotated[None, Depends(require_token)]) -> dict[str, str]:

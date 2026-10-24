@@ -2,7 +2,22 @@
 
 Phase 1 foundation. PostgreSQL 16 runs only in Docker Compose.
 
-### Linux / macOS (bash)
+### Docker (compose)
+
+```bash
+cd gateway
+cp .env.example .env
+# edit .env: set POSTGRES_PASSWORD and the three secrets, and point
+# DATABASE_URL at the compose service host `db`, e.g.
+# DATABASE_URL=postgresql+psycopg://qingyu:<POSTGRES_PASSWORD>@db:5432/qingyu
+docker compose up -d --build
+```
+
+Compose starts PostgreSQL 16, runs `alembic upgrade head` on the `app` container
+before uvicorn, binds the Gateway to 127.0.0.1:8000, and health-checks it with
+`/health/ready`. It refuses to start when the secrets in `.env` are unset.
+
+## Linux / macOS (bash)
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
