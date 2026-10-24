@@ -48,3 +48,38 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def _database_host(database_url: str | None) -> str:
+    if not database_url:
+        return ""
+    try:
+        from urllib.parse import urlsplit
+
+        return urlsplit(database_url).hostname or "(no host)"
+    except ValueError:
+        return "(unparsable url)"
+
+
+def startup_config_report(settings: Settings) -> str:
+    """One log line describing the effective configuration.
+
+    Secrets are never included, only whether each one is set; the database is
+    shown as host only, credentials stripped. Raises RuntimeError with a
+    pointer at the missing variable when a non-test environment cannot run.
+    """
+    if settings.app_env.lower() not in ("test",) and not settings.database_url:
+        raise RuntimeError(
+            "DATABASE_URL is not set: copy gateway/.env.example to gateway/.env, "
+            "fill in POSTGRES_PASSWORD and DATABASE_URL (see the comments there), "
+            "then start again."
+        )
+    return (
+        f"effective configuration: app_env={settings.app_env} "
+        f"listen={settings.host}:{settings.port} log_level={settings.log_level} "
+        f"archive_root={settings.archive_root} "
+        f"database={'set (host=' + _database_host(settings.database_url) + ')' if settings.database_url else 'NOT SET'} "
+        f"secrets set: api_token={'yes' if settings.api_token else 'no'} "
+        f"evidence_read_api_token={'yes' if settings.evidence_read_api_token else 'no'} "
+        f"evidence_cursor_signing_key={'yes' if settings.evidence_cursor_signing_key else 'no'}"
+    )
